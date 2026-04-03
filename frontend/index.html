@@ -1,34 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Demo</title>
+  <title>P4 OCR Demo</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
-
 <body>
-  <h1>OCR Demo</h1>
-
-  <div class="card">
-    <div class="upload-area" id="drop-zone">
-      <input type="file" id="file-input" accept="image/*" />
-      <label for="file-input">
-        Drop an image here or <span>click to browse</span>
-      </label>
-    </div>
-    <img id="preview" alt="Image preview" />
-    <button id="run-btn" disabled>Run OCR</button>
-    <div id="status"></div>
-  </div>
-
-  <div class="card output-card">
-    <h2>Output</h2>
-    <div id="output">Results will appear here.</div>
-  </div>
-
-  <script src="/static/script.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/static/app.js"></script>
 </body>
-
 </html>

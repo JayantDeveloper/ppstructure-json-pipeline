@@ -1,0 +1,29 @@
+{
+  "processing": {
+    "ocr_mode_label": "paddle+tesseract",
+    "run_timestamp": "2026-04-02T14:38:11Z"
+  },
+  "page_artifacts": [
+    {
+      "page_index": 0,
+      "page_json": {
+        "parsing_res_list": [
+          {
+            "block_label": "text",
+            "block_content": "Marital Married"
+          },
+          {
+            "block_label": "text",
+            "block_content": "PERM ID: DCM2401F011"
+          },
+          {
+            "block_label": "table",
+            "block_content": "<html><body><table><tbody><tr><td colspan=\"11\">DC Eligibility Determination</td></tr><tr><td></td><td>Billy Summers</td><td>400206</td><td>1234 Spring Street</td><td></td><td>Born 1/1/1234</td><td>9876543211</td><td>Not Recorded +BillySummers</td><td></td><td></td></tr><tr><td>4</td><td>Home</td><td>Eligibility</td><td>Evidence</td><td>Cases and Applications</td><td>Issues and Proceedings</td><td>Financial Transactions</td><td>Client Contact</td><td>Administration</td><td>Compliance</td></tr><tr><td>Eligibility Determination</td><td>Home</td><td>Add Picture</td><td>Eligibility</td></tr><tr><td>PDC Case No.</td><td>IC Case No.</td><td>Program Name</td><td>Program Code</td><td>Start Date</td><td>End Date</td><td>Recertification/Renewal Date</td><td>Recertification/Renewal Status</td><td>Assistance Unit</td></tr><tr><td>12345678</td><td>12345678</td><td>SSI</td><td>150V</td><td>11/1/2021</td><td>2/29/2024</td><td>2/29/2024</td><td></td><td>Billy Summers (3x)</td></tr><tr><td>1234567</td><td>1234567</td><td>Streamlined Medicaid</td><td></td><td>2/1/2015</td><td>2/29/2024</td><td>2/29/2024</td><td></td><td>Jamie Summers (1x), Melanie Summers (1x), Alice Summers (x)</td></tr></tbody></table></body></html>"
+          }
+        ]
+      },
+      "page_markdown": "",
+      "page_tables": []
+    }
+  ]
+}

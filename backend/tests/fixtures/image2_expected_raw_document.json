@@ -1,0 +1,102 @@
+{
+  "image_id": "image2",
+  "metadata": {
+    "filename": "image2.png",
+    "page_number": 2,
+    "ocr_mode": "paddle+tesseract",
+    "run_timestamp": "2026-04-02T14:38:11Z"
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "text": "DC Eligibility Determination"
+    },
+    {
+      "type": "text",
+      "text": "Billy Summers"
+    },
+    {
+      "type": "text",
+      "text": "1234 Spring Street"
+    },
+    {
+      "type": "text",
+      "text": "Marital Married"
+    },
+    {
+      "type": "text",
+      "text": "Born 1/1/1234"
+    },
+    {
+      "type": "text",
+      "text": "9876543211"
+    },
+    {
+      "type": "text",
+      "text": "Not Recorded"
+    },
+    {
+      "type": "text",
+      "text": "BillySummers"
+    },
+    {
+      "type": "text",
+      "text": "PERM ID: DCM2401F011"
+    },
+    {
+      "type": "text",
+      "text": "Eligibility Determination"
+    },
+    {
+      "type": "text",
+      "text": "Home"
+    },
+    {
+      "type": "text",
+      "text": "Eligibility"
+    },
+    {
+      "type": "table",
+      "title": "Eligibility",
+      "headers": [
+        "PDC Case No.",
+        "IC Case No.",
+        "Program Name",
+        "Program Code",
+        "Start Date",
+        "End Date",
+        "Recertification/Renewal Date",
+        "Recertification/Renewal Status",
+        "Assistance Unit"
+      ],
+      "rows": [
+        [
+          "12345678",
+          "12345678",
+          "SSI",
+          "150V",
+          "11/1/2021",
+          "2/29/2024",
+          "2/29/2024",
+          "",
+          "Billy Summers (3x)"
+        ],
+        [
+          "1234567",
+          "1234567",
+          "Streamlined Medicaid",
+          "",
+          "2/1/2015",
+          "2/29/2024",
+          "2/29/2024",
+          "",
+          "Jamie Summers (1x), Melanie Summers (1x), Alice Summers (x)"
+        ]
+      ]
+    },
+    {
+      "type": "noise",
+      "text": "Home Eligibility Evidence Cases and Applications Issues and Proceedings Financial Transactions Client Contact Administration Compliance Add Picture"
+    }
+  ]
+}

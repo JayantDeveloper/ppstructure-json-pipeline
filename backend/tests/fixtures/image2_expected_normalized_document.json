@@ -1,0 +1,75 @@
+{
+  "image_id": "image2",
+  "metadata": {
+    "filename": "image2.png",
+    "page_number": 2,
+    "ocr_mode": "paddle+tesseract",
+    "run_timestamp": "2026-04-02T14:38:11Z"
+  },
+  "document_context": {
+    "system_name": "DC Eligibility Determination",
+    "screen_title": "Eligibility Determination",
+    "section": "Eligibility"
+  },
+  "key_facts": {
+    "Client Name": "Billy Summers",
+    "Address": "1234 Spring Street",
+    "Marital": "Married",
+    "Born": "1/1/1234",
+    "PERM ID": "DCM2401F011"
+  },
+  "tables": [
+    {
+      "table_id": "eligibility_programs",
+      "title": "Eligibility",
+      "columns": [
+        "PDC Case No.",
+        "IC Case No.",
+        "Program Name",
+        "Program Code",
+        "Start Date",
+        "End Date",
+        "Recertification/Renewal Date",
+        "Recertification/Renewal Status",
+        "Assistance Unit"
+      ],
+      "rows": [
+        {
+          "PDC Case No.": "12345678",
+          "IC Case No.": "12345678",
+          "Program Name": "SSI",
+          "Program Code": "150V",
+          "Start Date": "11/1/2021",
+          "End Date": "2/29/2024",
+          "Recertification/Renewal Date": "2/29/2024",
+          "Recertification/Renewal Status": "",
+          "Assistance Unit": "Billy Summers (3x)"
+        },
+        {
+          "PDC Case No.": "1234567",
+          "IC Case No.": "1234567",
+          "Program Name": "Streamlined Medicaid",
+          "Program Code": "",
+          "Start Date": "2/1/2015",
+          "End Date": "2/29/2024",
+          "Recertification/Renewal Date": "2/29/2024",
+          "Recertification/Renewal Status": "",
+          "Assistance Unit": "Jamie Summers (1x), Melanie Summers (1x), Alice Summers (x)"
+        }
+      ]
+    }
+  ],
+  "ocr_text": [],
+  "filtered_noise": [
+    "Home",
+    "Eligibility",
+    "Evidence",
+    "Cases and Applications",
+    "Issues and Proceedings",
+    "Financial Transactions",
+    "Client Contact",
+    "Administration",
+    "Compliance",
+    "Add Picture..."
+  ]
+}

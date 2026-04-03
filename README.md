@@ -1,37 +1,25 @@
-# OCR Demo
+# Structured Document Pipeline
 
-A FastAPI web service that accepts an image upload and returns structured JSON with extracted text and table data.
+Minimal OCR demo for turning uploaded images and PDFs into raw OCR output, normalized JSON, and report-friendly document data.
 
-## Setup
+## Stack
 
-**1. Create and activate a virtual environment**
-```bash
-python -m venv .venv
-.venv\Scripts\activate       # Windows
-# source .venv/bin/activate  # macOS/Linux
-```
+- Backend: FastAPI
+- OCR: PaddleOCR / PP-StructureV3
+- Frontend: React
+- PDF export: jsPDF
 
-**2. Install dependencies**
-```bash
-pip install -r backend/requirements.txt
-```
+## Layout
 
-**3. Install Tesseract**
+- `backend/`
+  FastAPI app, OCR execution, table parsing, document normalization, and tests.
+- `frontend/src/`
+  React source for upload, preview, run state, and results display.
+- `frontend/`
+  Built static assets served by the app.
+- `test_images/`
+  Sample inputs for local testing.
 
-Tesseract must be installed on the system separately from pip.
-Download the installer from: https://github.com/UB-Mannheim/tesseract/wiki
+## Flow
 
-## Running the server
-
-```bash
-cd backend
-fastapi dev main.py
-```
-
-Open your browser and go to `http://localhost:8000`.
-
-## Usage
-
-1. Upload an image using the file picker or drag and drop
-2. Click **Run OCR**
-3. The extracted text and table data appear as JSON below the image
+Upload files -> run OCR -> build raw document blocks -> normalize into structured JSON -> render results / export report.
