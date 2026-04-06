@@ -81,7 +81,7 @@ def _extract_document_context(blocks: list[dict]) -> dict[str, str]:
     for block in blocks:
         if block.get("type") != "text":
             continue
-        text = str(block.get("text", "") or "").strip()
+        text = _normalize_text_value(block.get("text", ""))
         lowered = text.lower()
         if lowered.startswith("dc ") and "system_name" not in context:
             context["system_name"] = text
@@ -102,7 +102,7 @@ def _extract_key_facts(blocks: list[dict]) -> dict[str, str]:
     for block in blocks:
         if block.get("type") != "text":
             continue
-        text = str(block.get("text", "") or "").strip()
+        text = _normalize_text_value(block.get("text", ""))
         lowered = text.lower()
         if not text or lowered in {"home", "eligibility", "eligibility determination"}:
             continue
@@ -134,6 +134,7 @@ def _extract_key_facts(blocks: list[dict]) -> dict[str, str]:
 def _extract_tables_and_kind(blocks: list[dict]) -> tuple[list[dict], bool]:
     normalized_tables: list[dict] = []
     found_structured = False
+    generic_table_index = 1
 
     for block in blocks:
         if block.get("type") != "table":
@@ -170,6 +171,18 @@ def _extract_tables_and_kind(blocks: list[dict]) -> tuple[list[dict], bool]:
             found_structured = True
             continue
 
+        if headers == IDENTITY_COLUMNS:
+            normalized_tables.append(
+                {
+                    "table_id": "participant_identity",
+                    "title": block.get("title") or "Participant Data",
+                    "columns": IDENTITY_COLUMNS,
+                    "rows": [_row_to_object(IDENTITY_COLUMNS, _pad_row(row, len(IDENTITY_COLUMNS))) for row in rows],
+                }
+            )
+            found_structured = True
+            continue
+
         if headers == DECISION_COLUMNS:
             normalized_tables.append(
                 {
@@ -180,6 +193,13 @@ def _extract_tables_and_kind(blocks: list[dict]) -> tuple[list[dict], bool]:
                 }
             )
             found_structured = True
+            continue
+
+        generic_table = _normalize_generic_table(block, generic_table_index)
+        if generic_table:
+            normalized_tables.append(generic_table)
+            found_structured = True
+            generic_table_index += 1
 
     normalized_tables = [
         table
@@ -273,7 +293,7 @@ def _collect_filtered_noise(blocks: list[dict], document_context: dict[str, str]
         if block.get("type") != "text":
             continue
 
-        text = str(block.get("text", "") or "").strip()
+        text = _normalize_text_value(block.get("text", ""))
         if text in {"Home", "Eligibility"}:
             noise.append(text)
             continue
@@ -298,7 +318,7 @@ def _collect_fallback_ocr_text(
     for block in blocks:
         if block.get("type") != "text":
             continue
-        text = str(block.get("text", "") or "").strip()
+        text = _normalize_text_value(block.get("text", ""))
         if not text:
             continue
         if text in context_values or text in fact_values or text in noise_values:
@@ -340,6 +360,34 @@ def _row_to_object(columns: list[str], row: list[str]) -> dict[str, str]:
     return {
         column: row[index] if index < len(row) else ""
         for index, column in enumerate(columns)
+    }
+
+
+def _normalize_generic_table(block: dict, generic_table_index: int) -> dict | None:
+    raw_headers = [str(value).strip() for value in block.get("headers", []) if str(value).strip()]
+    raw_rows = [
+        [str(value).strip() for value in row if str(value).strip()]
+        for row in (block.get("rows") or [])
+    ]
+    raw_rows = [row for row in raw_rows if row]
+    if not raw_headers and not raw_rows:
+        return None
+
+    max_width = max([len(raw_headers), *[len(row) for row in raw_rows]], default=0)
+    if max_width == 0:
+        return None
+
+    columns = list(raw_headers)
+    while len(columns) < max_width:
+        columns.append(f"Extra Column {len(columns) - len(raw_headers) + 1}")
+
+    title = _clean_table_title(block.get("title")) or f"Table {generic_table_index}"
+    table_id = _slugify(title) or f"generic_table_{generic_table_index}"
+    return {
+        "table_id": table_id,
+        "title": title,
+        "columns": columns,
+        "rows": [_row_to_object(columns, _pad_row(row, len(columns))) for row in raw_rows],
     }
 
 
@@ -401,6 +449,25 @@ def _normalize_program_name(value: str) -> str:
 def _clean_date(value: str) -> str:
     match = DATE_RE.search(value.replace("Bom", "Born"))
     return match.group(0) if match else value.replace("Bom", "").replace("Born", "").strip()
+
+
+def _clean_table_title(value: str | None) -> str:
+    title = _normalize_text_value(value or "")
+    title = re.sub(r"\s*-\s*", " ", title)
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _normalize_text_value(value: object) -> str:
+    text = str(value or "").strip()
+    text = re.sub(r"^#{1,6}\s+", "", text)
+    return text.strip()
+
+
+def _slugify(value: str) -> str:
+    lowered = value.lower()
+    lowered = re.sub(r"[^a-z0-9]+", "_", lowered)
+    return lowered.strip("_")
 
 
 def _dedupe_preserve_order(values: list[str]) -> list[str]:

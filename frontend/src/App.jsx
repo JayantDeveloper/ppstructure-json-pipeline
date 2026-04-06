@@ -46,7 +46,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [previewUrls, setPreviewUrls] = useState([]);
-  const [ocrMode, setOcrMode] = useState('fast');
+  const [ocrMode, setOcrMode] = useState('full');
   const [elapsedMs, setElapsedMs] = useState(0);
   const [lastRunMs, setLastRunMs] = useState(0);
   const [status, setStatus] = useState({ message: '', isError: false, showSpinner: false });
@@ -107,6 +107,19 @@ export default function App() {
     };
   }, [isRunning]);
 
+  function resetRunArtifacts() {
+    setElapsedMs(0);
+    setLastRunMs(0);
+    setResult(createEmptyResult());
+    setStatus({ message: '', isError: false, showSpinner: false });
+    setReportState({ message: '', isError: false, isGenerating: false });
+
+    if (reportUrlRef.current) {
+      URL.revokeObjectURL(reportUrlRef.current);
+      reportUrlRef.current = '';
+    }
+  }
+
   function handleFiles(rawFiles) {
     if (isRunning) {
       return;
@@ -126,16 +139,28 @@ export default function App() {
     setBadgeStates(files.map(() => 'queued'));
     setActivePreviewIndex(0);
     setProcessingPreviewIndex(null);
-    setElapsedMs(0);
-    setLastRunMs(0);
-    setResult(createEmptyResult());
-    setStatus({ message: '', isError: false, showSpinner: false });
-    setReportState({ message: '', isError: false, isGenerating: false });
+    resetRunArtifacts();
+  }
 
-    if (reportUrlRef.current) {
-      URL.revokeObjectURL(reportUrlRef.current);
-      reportUrlRef.current = '';
+  function handleRemoveFile(indexToRemove) {
+    if (isRunning) {
+      return;
     }
+
+    const nextFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
+    setSelectedFiles(nextFiles);
+    setBadgeStates(nextFiles.map(() => 'queued'));
+    setActivePreviewIndex((currentIndex) => {
+      if (!nextFiles.length) {
+        return 0;
+      }
+      if (currentIndex > indexToRemove) {
+        return currentIndex - 1;
+      }
+      return Math.min(currentIndex, nextFiles.length - 1);
+    });
+    setProcessingPreviewIndex(null);
+    resetRunArtifacts();
   }
 
   function handleInputChange(event) {
@@ -434,27 +459,41 @@ export default function App() {
           <div className="preview-shell">
             {!selectedFiles.length ? (
               <div className="empty-preview">Preview will appear here.</div>
-            ) : (
+          ) : (
               <div className="thumb-grid">
                 {selectedFiles.map((file, index) => (
-                  <button
+                  <div
                     key={`${file.name}-${index}`}
-                    type="button"
                     className={`thumb-cell${index === highlightedPreviewIndex ? ' active' : ''}`}
-                    onClick={() => setActivePreviewIndex(index)}
-                    title={file.name}
                   >
-                    {isPdfFile(file) ? (
-                      <div className="thumb-pdf-placeholder">PDF</div>
-                    ) : (
-                      <img
-                        className="thumb-img"
-                        src={previewUrls[index] || ''}
-                        alt={file.name}
-                      />
-                    )}
-                    <span className="thumb-label">{file.name}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className="thumb-remove"
+                      aria-label={`Remove ${file.name}`}
+                      title={`Remove ${file.name}`}
+                      disabled={isRunning}
+                      onClick={() => handleRemoveFile(index)}
+                    >
+                      ×
+                    </button>
+                    <button
+                      type="button"
+                      className="thumb-card"
+                      onClick={() => setActivePreviewIndex(index)}
+                      title={file.name}
+                    >
+                      {isPdfFile(file) ? (
+                        <div className="thumb-pdf-placeholder">PDF</div>
+                      ) : (
+                        <img
+                          className="thumb-img"
+                          src={previewUrls[index] || ''}
+                          alt={file.name}
+                        />
+                      )}
+                      <span className="thumb-label">{file.name}</span>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -751,16 +790,22 @@ function formatDuration(milliseconds) {
 
 function mergeResults(results) {
   const normalizedResults = results.map(normalizeRunResult);
-  const documents = reindexDocuments(normalizedResults.flatMap((result) => result.documents || []));
-  const normalizedDocuments = documents
+  let documents = reindexDocuments(normalizedResults.flatMap((result) => result.documents || []));
+  let normalizedDocuments = documents
     .map((document) => document.normalized_document)
     .filter(Boolean);
+  let normalizedCase = mergeNormalizedDocuments(normalizedDocuments);
+  documents = reconcileDocumentsWithCaseFacts(documents, normalizedCase);
+  normalizedDocuments = documents
+    .map((document) => document.normalized_document)
+    .filter(Boolean);
+  normalizedCase = mergeNormalizedDocuments(normalizedDocuments);
 
   if (normalizedResults.length === 1) {
     return {
       ...reindexResultDocuments(normalizedResults[0], documents),
       documents,
-      normalized_case: mergeNormalizedDocuments(normalizedDocuments),
+      normalized_case: normalizedCase,
     };
   }
 
@@ -794,7 +839,7 @@ function mergeResults(results) {
     pages: normalizedResults.flatMap((result) => result.pages || []),
     processing: mergedProcessing,
     documents,
-    normalized_case: mergeNormalizedDocuments(normalizedDocuments),
+    normalized_case: normalizedCase,
   };
 }
 
@@ -920,6 +965,184 @@ function normalizeNormalizedTables(tables) {
     .filter((table) => table.columns.length > 0 || table.rows.length > 0) : [];
 }
 
+function normalizePermId(value) {
+  const normalized = String(value || '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (normalized.startsWith('DOM')) {
+    return `DCM${normalized.slice(3)}`;
+  }
+  return normalized;
+}
+
+function looksLikeClientName(value) {
+  return /^[A-Za-z][A-Za-z' -]+(?: [A-Za-z][A-Za-z' -]+){1,3}$/.test(String(value || '').trim());
+}
+
+function looksLikeAddress(value) {
+  return /\b(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Lane|Ln\.?|Court|Ct\.?|Boulevard|Blvd\.?|Way)\b/i.test(String(value || ''));
+}
+
+function isSimilarPermId(left, right) {
+  const a = normalizePermId(left);
+  const b = normalizePermId(right);
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  let differences = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      differences += 1;
+      if (differences > 2) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function scoreDocumentStrength(document) {
+  return Object.keys(document?.document_context || {}).length * 40
+    + Object.keys(document?.key_facts || {}).length * 20
+    + (document?.tables || []).length * 15;
+}
+
+function scoreKeyFactCandidate(key, value, document) {
+  let score = scoreDocumentStrength(document);
+  if (!value) {
+    return score;
+  }
+
+  if (key === 'PERM ID') {
+    if (/^[A-Z]{3}\d[A-Z0-9-]{5,}$/.test(value)) {
+      score += 20;
+    }
+    if (value.startsWith('DCM')) {
+      score += 10;
+    }
+  } else if (key === 'Client Name' && looksLikeClientName(value)) {
+    score += 20;
+  } else if (key === 'Address' && looksLikeAddress(value)) {
+    score += 20;
+  } else if ((key === 'Born' || key === 'DOB') && /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(value)) {
+    score += 10;
+  }
+
+  return score;
+}
+
+function chooseMergedKeyFacts(documents) {
+  const bestFacts = {};
+  const bestScores = {};
+
+  documents.forEach((document) => {
+    Object.entries(document.key_facts || {}).forEach(([key, rawValue]) => {
+      const value = key === 'PERM ID' ? normalizePermId(rawValue) : String(rawValue || '').trim();
+      if (!key || !value) {
+        return;
+      }
+
+      const score = scoreKeyFactCandidate(key, value, document);
+      if (bestScores[key] == null || score > bestScores[key]) {
+        bestScores[key] = score;
+        bestFacts[key] = value;
+      }
+    });
+  });
+
+  return bestFacts;
+}
+
+function reconcileParticipantIdentityRows(rows, keyFacts) {
+  return (rows || []).map((row) => {
+    const nextRow = { ...row };
+
+    if (nextRow['PERM ID']) {
+      nextRow['PERM ID'] = normalizePermId(nextRow['PERM ID']);
+    }
+    if (keyFacts['PERM ID'] && (!nextRow['PERM ID'] || isSimilarPermId(nextRow['PERM ID'], keyFacts['PERM ID']))) {
+      nextRow['PERM ID'] = keyFacts['PERM ID'];
+    }
+    if ((!nextRow.Participant || !looksLikeClientName(nextRow.Participant)) && keyFacts['Client Name']) {
+      nextRow.Participant = keyFacts['Client Name'];
+    }
+    if (!nextRow.Gender && keyFacts.Gender) {
+      nextRow.Gender = keyFacts.Gender;
+    }
+    if (!nextRow.DOB && keyFacts.Born) {
+      nextRow.DOB = keyFacts.Born;
+    }
+    if (!nextRow.Address && keyFacts.Address) {
+      nextRow.Address = keyFacts.Address;
+    }
+
+    return nextRow;
+  });
+}
+
+function reconcileNormalizedTablesWithCaseFacts(tables, keyFacts) {
+  return (tables || []).map((table) => {
+    if (table.table_id !== 'participant_identity') {
+      return table;
+    }
+
+    return {
+      ...table,
+      title: table.title || 'Participant Data',
+      rows: reconcileParticipantIdentityRows(table.rows, keyFacts),
+    };
+  });
+}
+
+function reconcileDocumentsWithCaseFacts(documents, normalizedCase) {
+  if (!normalizedCase?.key_facts) {
+    return documents;
+  }
+
+  return documents.map((document) => {
+    const normalizedDocument = document.normalized_document;
+    if (!normalizedDocument) {
+      return document;
+    }
+
+    const reconciledTables = reconcileNormalizedTablesWithCaseFacts(
+      normalizedDocument.tables,
+      normalizedCase.key_facts,
+    );
+    const hasParticipantIdentity = reconciledTables.some((table) => table.table_id === 'participant_identity');
+    const keyFacts = {
+      ...normalizedDocument.key_facts,
+    };
+
+    if (keyFacts['PERM ID']) {
+      keyFacts['PERM ID'] = normalizePermId(keyFacts['PERM ID']);
+    }
+    if (normalizedCase.key_facts['PERM ID'] && (!keyFacts['PERM ID'] || isSimilarPermId(keyFacts['PERM ID'], normalizedCase.key_facts['PERM ID']))) {
+      keyFacts['PERM ID'] = normalizedCase.key_facts['PERM ID'];
+    }
+    if (hasParticipantIdentity && normalizedCase.key_facts['Client Name'] && !keyFacts['Client Name']) {
+      keyFacts['Client Name'] = normalizedCase.key_facts['Client Name'];
+    }
+    if (hasParticipantIdentity && normalizedCase.key_facts.Address && !keyFacts.Address) {
+      keyFacts.Address = normalizedCase.key_facts.Address;
+    }
+    if (hasParticipantIdentity && normalizedCase.key_facts.Gender && !keyFacts.Gender) {
+      keyFacts.Gender = normalizedCase.key_facts.Gender;
+    }
+    if (hasParticipantIdentity && normalizedCase.key_facts.Born && !keyFacts.Born) {
+      keyFacts.Born = normalizedCase.key_facts.Born;
+    }
+
+    return {
+      ...document,
+      normalized_document: {
+        ...normalizedDocument,
+        key_facts: keyFacts,
+        tables: reconciledTables,
+      },
+    };
+  });
+}
+
 function mergeNormalizedDocuments(documents) {
   if (!documents.length) {
     return null;
@@ -937,19 +1160,13 @@ function mergeNormalizedDocuments(documents) {
     });
   });
 
-  const keyFacts = {};
-  structuredDocuments.forEach((document) => {
-    Object.entries(document.key_facts || {}).forEach(([key, value]) => {
-      if (!keyFacts[key] && value) {
-        keyFacts[key] = value;
-      }
-    });
-  });
+  const keyFacts = chooseMergedKeyFacts(structuredDocuments);
 
   const tables = [];
   const seenTables = new Set();
   structuredDocuments.forEach((document) => {
-    (document.tables || []).forEach((table) => {
+    const reconciledTables = reconcileNormalizedTablesWithCaseFacts(document.tables, keyFacts);
+    reconciledTables.forEach((table) => {
       const signature = JSON.stringify({
         table_id: table.table_id,
         title: table.title,

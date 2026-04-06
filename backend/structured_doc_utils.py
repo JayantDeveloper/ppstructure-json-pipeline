@@ -12,6 +12,8 @@ ADDRESS_RE = re.compile(
 )
 DATE_RE = re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b")
 PHONE_RE = re.compile(r"\b\d{7,12}\b")
+PERM_ID_RE = re.compile(r"perm\s+id\s*:?\s*([A-Z0-9-]{6,})", re.IGNORECASE)
+MARITAL_RE = re.compile(r"marital\s*:?\s*([A-Za-z][A-Za-z /-]{1,40})", re.IGNORECASE)
 MENU_TERMS = {
     "home",
     "eligibility",
@@ -197,6 +199,8 @@ def _build_eligibility_blocks(region: dict) -> list[dict]:
     profile_row = _extract_profile_row(leading_rows)
     if profile_row:
         blocks.extend(_profile_row_to_blocks(profile_row))
+
+    blocks.extend(_extract_header_fact_blocks(leading_rows))
 
     screen_title = _extract_screen_title(leading_rows)
     if screen_title:
@@ -439,7 +443,7 @@ def _consume_eligibility_tokens(tokens: list[str]) -> tuple[list[str], list[str]
 
 def _blocks_from_text_content(content: str) -> list[dict]:
     plain = re.sub(r"<[^>]+>", " ", content)
-    lines = [re.sub(r"\s+", " ", line).strip() for line in plain.splitlines()]
+    lines = [_normalize_text_line(line) for line in plain.splitlines()]
     blocks: list[dict] = []
 
     for line in lines:
@@ -452,6 +456,35 @@ def _blocks_from_text_content(content: str) -> list[dict]:
             blocks.append({"type": "noise", "text": _fix_noise_spelling(line)})
         else:
             blocks.append({"type": "text", "text": line})
+
+    return blocks
+
+
+def _extract_header_fact_blocks(rows: list[list[str]]) -> list[dict]:
+    blocks: list[dict] = []
+    seen: set[str] = set()
+
+    for row in rows:
+        compact = [cell.strip() for cell in row if cell and cell.strip()]
+        if not compact:
+            continue
+
+        joined = " ".join(compact)
+        perm_id_match = PERM_ID_RE.search(joined)
+        if perm_id_match:
+            text = f"PERM ID: {perm_id_match.group(1)}"
+            signature = text.lower()
+            if signature not in seen:
+                seen.add(signature)
+                blocks.append({"type": "text", "text": text})
+
+        marital_match = MARITAL_RE.search(joined)
+        if marital_match:
+            text = f"Marital {marital_match.group(1).strip()}"
+            signature = text.lower()
+            if signature not in seen:
+                seen.add(signature)
+                blocks.append({"type": "text", "text": text})
 
     return blocks
 
@@ -586,6 +619,12 @@ def _fix_noise_spelling(value: str) -> str:
         .replace("Appllications", "Applications")
         .strip()
     )
+
+
+def _normalize_text_line(value: str) -> str:
+    normalized = re.sub(r"\s+", " ", value).strip()
+    normalized = re.sub(r"^#{1,6}\s+", "", normalized)
+    return normalized.strip()
 
 
 def _result_json(result) -> dict:

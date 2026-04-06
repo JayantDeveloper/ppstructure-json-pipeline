@@ -114,6 +114,125 @@ class DocumentNormalizationTests(unittest.TestCase):
         self.assertNotIn("Client Name", normalized["key_facts"])
         self.assertEqual(normalized["document_context"], {})
 
+    def test_markdown_heading_text_is_normalized_in_raw_and_normalized_output(self):
+        raw_document = build_raw_document(
+            [
+                {
+                    "page_index": 0,
+                    "page_json": {},
+                    "page_markdown": "# Program Eligibility for Selected Year",
+                    "page_tables": [],
+                }
+            ],
+            source="image3.png",
+            processing={
+                "ocr_mode": "full",
+                "ocr_mode_label": "Full",
+                "run_timestamp": "2026-04-05T17:07:25Z",
+            },
+            page_number=3,
+        )
+
+        self.assertEqual(raw_document["blocks"], [
+            {"type": "text", "text": "Program Eligibility for Selected Year"}
+        ])
+
+        normalized = normalize_document_result(
+            {
+                "source": "image3.png",
+                "raw_document": raw_document,
+            }
+        )
+        self.assertEqual(normalized["ocr_text"], ["Program Eligibility for Selected Year"])
+
+    def test_build_raw_document_preserves_perm_id_and_marital_from_eligibility_header(self):
+        html = """
+        <table border="1"><tbody>
+          <tr><td>DC Eligibility Determination</td></tr>
+          <tr>
+            <td>Billy Summers</td>
+            <td>1234 Spring Street</td>
+            <td>Marital Married</td>
+            <td>1/1/1234</td>
+            <td>PERM ID: DCM2401F011</td>
+          </tr>
+          <tr><td>Eligibility Determination</td><td>Home</td><td>Eligibility</td></tr>
+          <tr>
+            <td>PDC Case No.</td><td>IC Case No.</td><td>Program Name</td><td>Program Code</td>
+            <td>Start Date</td><td>End Date</td><td>Recertification/Renewal Date</td>
+            <td>Recertification/Renewal Status</td><td>Assistance Unit</td>
+          </tr>
+          <tr>
+            <td>12345678</td><td>12345678</td><td>SS</td><td>150V</td>
+            <td>11/1/2021</td><td>2/29/2024</td><td>2/29/2024</td><td></td><td>Billy Summers (3x)</td>
+          </tr>
+        </tbody></table>
+        """
+        raw_document = build_raw_document(
+            [
+                {
+                    "page_index": 0,
+                    "page_json": {
+                        "parsing_res_list": [
+                            {
+                                "block_label": "table",
+                                "block_content": html,
+                            }
+                        ]
+                    },
+                    "page_markdown": "",
+                    "page_tables": [],
+                }
+            ],
+            source="image2.png",
+            processing={
+                "ocr_mode": "full",
+                "ocr_mode_label": "Full",
+                "run_timestamp": "2026-04-05T17:07:21Z",
+            },
+            page_number=2,
+        )
+
+        text_blocks = [block["text"] for block in raw_document["blocks"] if block.get("type") == "text"]
+        self.assertIn("Marital Married", text_blocks)
+        self.assertIn("PERM ID: DCM2401F011", text_blocks)
+
+    def test_unknown_table_is_preserved_as_generic_normalized_table(self):
+        document_result = {
+            "source": "image4.png",
+            "raw_document": {
+                "image_id": "image4",
+                "metadata": {
+                    "filename": "image4.png",
+                    "page_number": 4,
+                    "ocr_mode": "full",
+                    "run_timestamp": "2026-04-05T17:07:25Z",
+                },
+                "blocks": [
+                    {
+                        "type": "table",
+                        "title": "- Coveroge Type Deteils -Entitiement",
+                        "headers": ["Expense", "Expense All Recorded", "All Recorded"],
+                        "rows": [
+                            ["MAGI Spend down", "Living Expense", "Shelter Expense"],
+                            ["- Court Order Expense", "Medical Expense", "Uneamed Rental Income Expenses", "Child Support Expense"],
+                        ],
+                    }
+                ],
+            },
+        }
+
+        normalized = normalize_document_result(document_result)
+
+        self.assertEqual(len(normalized["tables"]), 1)
+        self.assertEqual(normalized["tables"][0]["columns"], [
+            "Expense",
+            "Expense All Recorded",
+            "All Recorded",
+            "Extra Column 1",
+        ])
+        self.assertEqual(normalized["tables"][0]["rows"][1]["Extra Column 1"], "Child Support Expense")
+
 
 if __name__ == "__main__":
     unittest.main()
